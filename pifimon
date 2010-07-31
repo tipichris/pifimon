@@ -9,6 +9,11 @@
 # -d use a driver from the Drivers directory. driver
 #    is the filename without the .pm extension
 #
+# See README for more information
+# NB because `iwlist scan` requires root priviliges, pifimon must also
+# be run as root.
+
+#
 # This file is part of pifimon, a Perl script for monitoring wireless
 # networks under Linux
 #

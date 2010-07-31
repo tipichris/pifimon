@@ -23,6 +23,9 @@ Default values for both driver and interface can be set by changing
 the values of $default_if and $default_driver in the configuration 
 section of the script.
 
+NB because `iwlist scan` requires root priviliges, pifimon must also
+be run as root.
+
 Copyright 2010 Chris Hastie (http://www.oak-wood.co.uk/)
 
 Concept inspired by scanmeter: 
