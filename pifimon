@@ -1,0 +1,602 @@
+#!/usr/bin/perl -w
+
+# pifimon - a Linux wifi monitoring tool written in Perl
+# depends on iwlist
+#
+# Synopsis:
+# pifimon [-d driver] [interface]
+#
+# -d use a driver from the Drivers directory. driver
+#    is the filename without the .pm extension
+#
+# This file is part of pifimon, a Perl script for monitoring wireless
+# networks under Linux
+#
+# Copyright 2010 Chris Hastie (http://www.oak-wood.co.uk/)
+#
+# Concept inspired by scanmeter: 
+# http://www.skifactz.com/wifi/Linux_Antenna_Tuning.htm
+# Perl parsing of iwlist output based on Timothy Mills' wiscan.pl:
+# http://jintoreedwine.wordpress.com/2008/08/04/how-i-shortened-the-iwlist-scan-output/
+#
+# pifimon is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pifimon is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pifimon.  If not, see <http://www.gnu.org/licenses/>.
+
+use Term::ANSIColor;
+use Term::ReadKey;
+use Getopt::Std;
+use strict;
+
+### CONFIGURATION ###
+
+# default interface
+my $default_if = 'eth1';
+
+# default driver
+my $default_driver = 'wl';
+
+# values, in dBm below which we display red / yellow
+# used with drivers that return signal level in dBm
+my $poor_theshold_dbm = -69;
+my $moderate_theshold_dbm = -59;
+
+# values in % below which we display red / yellow
+# used with drivers which return signal leval as percentage
+my $poor_theshold_pct = 15;
+my $moderate_theshold_pct = 35;
+
+########
+# The following display variables are set using Term::ANSIcolor
+# and require the appropriate syntax
+########
+
+# colours for poor, moderate and good signal strenth
+my $poor_colour = color 'red';
+my $moderate_colour = color 'cyan'; # yellow seems to display as dark grey on ubuntu console :(
+my $good_colour = color 'green';
+
+# format for the title bar
+my $titlebarfmt = color 'white on_blue bold';
+
+# format for the key hints
+my $keyhintfmt = color 'underline';
+
+### END CONFIGURATION ###
+
+# get the path to the script ready for use lib
+my $path;
+BEGIN {
+  my $mycmd;
+  if ($0 =~ m{^([A-Za-z0-9/._=+-]+)$}) {
+    $mycmd = $1 # untaint
+  }
+  $path = substr($mycmd, 0, rindex( $mycmd,'/'));
+}
+
+use lib $path;
+
+my $reset = color 'reset';
+
+my %opts;
+
+getopts('d:', \%opts);
+
+my $if = shift;
+$if = $default_if unless $if;
+
+# allows us to print 'wide characters' such as \N{U+2588}
+binmode STDOUT, ":utf8";
+
+
+my $driver = $default_driver;
+$driver = $opts{'d'} if ($opts{'d'});
+
+require "Drivers/" . $driver . '.pm';
+my $scanner = "Iwlist::$driver"->new($if);
+
+
+my $sigunits = $scanner->getsigunits();
+my $poor_theshold;
+my $moderate_theshold;
+
+if ($sigunits eq 'pct') {
+  $poor_theshold = $poor_theshold_pct;
+  $moderate_theshold = $moderate_theshold_pct;
+} else {
+  $poor_theshold = $poor_theshold_dbm;
+  $moderate_theshold = $moderate_theshold_dbm;
+}
+# by storing the return value we can clear the screen by printing
+# the stored value in future.
+my $clear = `clear`;
+
+# start off looping the cell list
+my $looping = 1;
+
+my $menutext = "Monitor cell " . keyhint("nn") . ", toggle " . keyhint("L") . "ooping, ";
+$menutext .= keyhint("R") . "eset list, " . keyhint("Q") . "uit\n";
+
+
+continuouslist();
+
+#  $scanner->scan() || print "error\n";
+#  $scanner->dumpdata();
+#  $scanner->dumpindex();
+#  exit;
+
+sub keyhint {
+  my $text = shift;
+  return $keyhintfmt . $text . $reset;
+}
+
+# interpret choices made by the user...
+sub choices {
+  my $key = shift;
+  my $data = $scanner->getdata();   # we need this to know if a numeric input is valid
+  if (lc($key) eq 'l') {            # L: toggle looping the list of cells
+    $looping = !$looping;
+    if ($looping) {
+      continuouslist();
+    } else {
+      staticlist();
+    }
+  } elsif (lc($key) eq 'q') {        # Q: exit
+    exit;
+  } elsif (lc($key) eq 'r') {        # R: reset the list of cells seen this session
+    $scanner->resetdata();
+    if ($looping) {
+      continuouslist();
+    } else {
+      staticlist();
+    }
+  } elsif (exists($data->{$key})) {    # numeric: monitor that cell if it exists
+    monitor($key);
+  }
+  else {                            # default: return to cell list
+    if ($looping) {
+      continuouslist();
+    } else {
+      staticlist();
+    }
+  }
+}
+
+# monitor one cell
+sub monitor {
+  my $id = shift;
+  my $cell = $scanner->getcelldatabyid($id);
+
+  print $clear;
+  print $titlebarfmt;
+  my $title = "Signal strength for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")";
+  my $diplayunits .= $sigunits eq 'pct' ? ' %  ' : 'dBm ';
+  my $spaces = 76 - length($title);
+  print $title . " " x $spaces;
+  print $diplayunits;
+  print $reset;
+
+  print "\nPress Q to quit and return to cell list\n\n";
+
+  my $macid = $cell->{'macid'};
+
+  # Display character: here we use a unicode block character
+  my $displaychar = "\N{U+2588}";
+
+  # maximum length of red bar, in characters
+  my $maxred;
+  my $maxyellow;
+  if ($sigunits eq 'pct') {
+    $maxred = sprintf("%.0f", 0.75 * $poor_theshold);
+    $maxyellow = sprintf("%.0f", 0.75 * $moderate_theshold);
+  } else {
+    $maxred = 80 + $poor_theshold;
+    $maxyellow = 80 + $moderate_theshold;
+  }
+
+  ReadMode 4; # Turn off controls keys
+  while (1) {
+    my $c;
+    $c = ReadKey(-1);
+    if (lc($c) eq 'q' ) {    # exit if we get a Q
+      last;
+    }
+    unless ($scanner->scan()) {
+      print "error runnng scan\n";
+      $looping = 0;
+      last;
+    }
+    my $celldata = $scanner->getcelldatabymac($macid);
+    if ($celldata->{'sigLvl'} && length($celldata->{'sigLvl'}) > 0 ) {
+      my $barlength;
+      if ($sigunits eq 'pct') {
+        # length of bar: squeeze 100% into 80 characters, with space to print value
+        $barlength = sprintf("%.0f", 0.75 * $celldata->{'sigLvl'});
+      } else {
+        # length of bar: 80 + sigLvl fits well on an 80 character screen
+        $barlength = 80 + $celldata->{'sigLvl'};
+      }
+      # for signals of -80dBm and below show one bar
+      $barlength = 1 if $barlength < 1;
+      # for signals over -5dBm truncate bar to fit 80 characters
+      $barlength = 75 if $barlength > 75;
+      
+      # spaces to insert before signal level, to keep signal levels lined up
+      my $spaces = 80 - 4 - $barlength;
+
+
+      my $poor_colourbar = $barlength;
+      my $moderate_colourbar = 0;
+      my $good_colourbar = 0;
+      if ($barlength > $maxred) {
+        $poor_colourbar = $maxred;
+        $moderate_colourbar = $barlength - $maxred;
+      }
+      if ($barlength > $maxyellow) {
+        $moderate_colourbar = $maxyellow - $maxred;
+        $good_colourbar = $barlength - $maxyellow
+      }
+      print $poor_colour;
+      print $displaychar x $poor_colourbar;
+      print $moderate_colour;
+      print $displaychar x $moderate_colourbar;
+      print $good_colour;
+      print $displaychar x $good_colourbar;
+      print $reset;
+      print " " x $spaces;
+      print $celldata->{'sigLvl'};
+      print '%' if $sigunits eq 'pct';
+      print "\n";
+    } else {
+      print "No signal for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")\n";
+    }
+  }
+  ReadMode 0; # Reset tty mode before exiting
+
+  if ($looping) {
+    continuouslist();
+  } else {
+    staticlist();
+  }
+}
+
+# Display a static list of cells
+sub staticlist {
+  liststations($menutext);
+  print "\n";
+  print "Looping is off\n";
+  my $key = '';
+  ReadMode 4;
+  while (1) {
+    my $c;
+    1 until defined($c = ReadKey(-1));
+    if ($c =~ /[^0-9]/ ) {
+      last if length($key);
+      $key .= $c;
+      last;
+    }
+    print $c;
+    $key .= $c;
+  }
+  ReadMode 0;
+
+  choices($key);
+
+}
+
+# display a continuously updating list of cells
+sub continuouslist {
+  my $key = '';
+  ReadMode 4;
+  while (1) {
+    my $c;
+    $c = ReadKey(-1);
+    # a single non numeric character will be interpreted,
+    # but we need to allow for two or more digits in cell IDs
+    if ($c && $c =~ /[^0-9]/ ) {
+      if (!length($key)) {   # single non numeric
+        $key .= $c;
+        last;
+      }
+      elsif ($c eq "\n") {   # 'Enter' after numerics
+        last;
+      }
+      else {                 # Something other than 'Enter' after numerics: reset
+        $key = '';
+      }
+    } else {                 # numeric
+      $key .= $c if defined($c);
+    }
+    unless (liststations($menutext)) {
+      $looping = 0;
+      last;
+    }
+    if (length($key)) {
+      print $key . " :Enter to select this cell";
+    }
+  }
+  ReadMode 0;
+
+  choices($key);
+}
+
+# draw the list of stations
+sub liststations {
+  my $topmsg = shift;
+  unless ($scanner->scan()) {
+    print "error; scan with iwlist failed\n";
+    print $topmsg;
+    return 0;
+  }
+
+  my $units = $sigunits eq 'pct' ? 'Sig%' : 'dBm';
+  my $data = $scanner->getdata();
+  print $clear;
+  print $topmsg;
+  print $titlebarfmt;
+  print "ID\tMacID\t\t\t";
+  print $units;
+  print "\tChan\tEncryption\tESSID\t";
+  print $reset;
+  print "\n";
+  foreach my $idx (sort {$a <=> $b} keys %{$data}) {
+    my $cell = $data->{$idx};
+    print "$idx\t" . $cell->{'macid'} . "\t";
+    if ($cell->{'sigLvl'} && $cell->{'sigLvl'} < $poor_theshold) {
+      print $poor_colour;
+    } elsif ($cell->{'sigLvl'} && $cell->{'sigLvl'} < $moderate_theshold) {
+      print $moderate_colour;
+    } else {
+      print $good_colour;
+    }
+    if ($cell->{'sigLvl'}){ print $cell->{'sigLvl'}; }
+    print $reset;
+    print "\t" . $cell->{'channel'} . "\t" . $cell->{'enc'} . "\t" . $cell->{'encType'} . "\t" . $cell->{'essid'} . "\n";
+  }
+  return 1;
+}
+
+
+
+
+
+#############################################################################
+package Iwlist;
+
+use strict;
+
+sub new {
+    my $class = shift;
+    my $self  = {};
+    $self->{'if'}=shift;
+    $self->{'data'} = {};
+    $self->{'idx'} = 0;
+    $self->{'maxidx'} = 1;
+    $self->{'cellidx'} = {};
+
+    bless $self, $class;
+    $self->init_re();
+    return $self;
+}
+
+# run iwlist and parse output into $self->{'data'}
+sub scan {
+
+  my $self = shift;
+  my $cmd = 'iwlist ' . $self->{'if'} . ' scan 2> /dev/null';
+
+  my @myLines = `$cmd`; 
+  return 0 unless (@myLines);
+
+  my $start = 1;
+  # grab a temporary list of cells which will be used to keep
+  # track of what we've seen in this scan
+  my %celllist = %{$self->{'cellidx'}};
+
+  foreach (@myLines) {
+    chomp($_);
+    if ($_ =~ $self->{'re'}->{'cell'}) {
+      if (!$start) {
+        # add the last cell processed to the cell index
+        my $thisidx = $self->{'data'}->{$self->{'idx'}}->{'macid'};
+        $self->{'cellidx'}->{$thisidx} = $self->{'idx'};
+      }
+      $start = 0;
+      my $macid = $self->getMacID($_);
+      if ($self->{'cellidx'}->{$macid}) {
+        $self->{'idx'} = $self->{'cellidx'}->{$macid};
+        delete $celllist{$macid};  # remove this from our temporary list of cells
+      } else {
+        $self->{'idx'} = $self->{'maxidx'}++;
+      }
+      # set some default values up
+      my $cell={};
+      $cell->{'idx'} = $self->{'idx'};
+      $cell->{'essid'} = "";
+      $cell->{'macid'} = $macid;
+      $cell->{'quality'} = "";
+      $cell->{'sigLvl'} = "";
+      $cell->{'enc'} = "";
+      $cell->{'encType'} = "WEP";
+      $cell->{'authType'} = "N/A";
+      $cell->{'channel'} = "";
+      $self->{'data'}->{$self->{'idx'}} = $cell;
+
+    }
+    if ($_ =~ $self->{'re'}->{'essid'}) {
+      $self->handleName($_);
+    }
+    elsif($_ =~ $self->{'re'}->{'key'}) {
+      $self->handleKey($_);
+    }
+    elsif($_ =~ $self->{'re'}->{'quality'}) {
+      $self->handleQuality($_);
+    }
+    elsif($_ =~ $self->{'re'}->{'enctype'}) {
+      $self->handleEncType($_);
+    }
+    elsif($_ =~ $self->{'re'}->{'authtype'}) {
+      $self->handleAuthType($_);
+    }
+    elsif($_ =~ $self->{'re'}->{'frequency'}) {
+      $self->handleChannel($_);
+    }
+  }
+  # add the final index
+  my $thisidx = $self->{'data'}->{$self->{'idx'}}->{'macid'};
+  $self->{'cellidx'}->{$thisidx} = $self->{'idx'};
+
+  # what's left in %celllist should now be just cells
+  # that we didn't see in this scan. Run through and
+  # set all the sigLvl to undef
+  foreach my $deadcell (values %celllist) {
+    $self->{'data'}->{$deadcell}->{'sigLvl'} = undef;
+  }
+
+  return 1;
+}
+
+# for debugging: dump out our data
+sub dumpdata {
+ my $self = shift;
+ use Data::Dumper;
+ print Dumper($self->{'data'});
+}
+
+# for debugging: dump out our cell index
+sub dumpindex {
+ my $self = shift;
+ use Data::Dumper;
+ print Dumper($self->{'cellidx'});
+}
+
+# return all data for all cells
+sub getdata {
+ my $self = shift;
+ return $self->{'data'};
+}
+
+# return data for one cell, given its ID
+sub getcelldatabyid {
+  my $self = shift;
+  my $id = shift;
+  return $self->{'data'}->{$id};
+}
+
+# return data for one cell, given its MAC
+sub getcelldatabymac {
+  my $self = shift;
+  my $mac = shift;
+  my $id = $self->{'cellidx'}->{$mac};
+  return $self->getcelldatabyid($id);
+}
+
+# reset the data hash and index
+sub resetdata {
+  my $self = shift;
+
+  $self->{'data'} = {};
+  $self->{'idx'} = 0;
+  $self->{'maxidx'} = 1;
+  $self->{'cellidx'} = {};
+}
+
+#############################
+# The following subs can be redefined
+# in a descendant package to cope with
+# other drivers or versions of iwlist
+
+# initialise the regular expressions used to identify
+# which lines hold important data. 
+sub init_re {
+  my $self = shift;
+  $self->{'re'}->{'cell'} = qr/^\s*Cell [0-9][0-9]/;
+  $self->{'re'}->{'essid'} = qr/^\s*ESSID/;
+  $self->{'re'}->{'key'} = qr/^\s*Encryption key/;
+  $self->{'re'}->{'quality'} = qr/^\s*Quality/;
+  $self->{'re'}->{'enctype'} = qr/^\s*IE: WPA .+ [0-9]/;
+  $self->{'re'}->{'authtype'} = qr/^\s*Authentication Suites/;
+  $self->{'re'}->{'frequency'} = qr/^\s*Frequency/;
+
+  return 1;
+}
+
+# indicate the units we are supplying SigLvl in
+# either 'dbm' for dBm, or 'pct' for percentage
+sub getsigunits {
+  return 'dbm';
+}
+
+# extract a cell's ESSID
+sub handleName {
+  my $self = shift;
+  my $line = shift;
+  my $name = (split(":", $line))[1];
+  if ($name =~ /^\"(.*)\"$/) {
+    $name = $1;
+  }
+  $self->{'data'}->{$self->{'idx'}}->{'essid'} = $name;
+}
+
+# extract if a cell is using encryption or not
+sub handleKey {
+  my $self = shift;
+  my $line = shift;
+  my $enc = (split(":", $line))[1];
+  $self->{'data'}->{$self->{'idx'}}->{'enc'} = $enc;
+}
+
+# extract a cell's MAC
+sub getMacID {
+  my $self = shift;
+  my $line = shift;
+  my $macid = (split(": ", $line))[1];
+  return $macid;
+}
+
+# extract info on a cell's signal quality and strength
+sub handleQuality {
+  my $self = shift;
+  my $qual = shift;
+
+  my @qualArr = split(" ", $qual);
+
+  my $quality = (split(":", $qualArr[0]))[1];
+  my $sigLvl = (split(":", $qualArr[2]))[1];
+  $self->{'data'}->{$self->{'idx'}}->{'quality'} = $quality;
+  $self->{'data'}->{$self->{'idx'}}->{'sigLvl'} = $sigLvl;
+}
+
+# extact info on version of WPA in use by cell
+sub handleEncType {
+  my $self = shift;
+  my $line = shift;
+  my $encType = "WPA v".($line =~ ".*[0-9]");
+  $self->{'data'}->{$self->{'idx'}}->{'encType'} = $encType;
+}
+
+# extract info on type of authentication supported
+sub handleAuthType {
+  my $self = shift;
+  my $line = shift;
+  my $authType = (split(" ", $line))[4];
+  $self->{'data'}->{$self->{'idx'}}->{'authType'} = $authType;
+}
+
+# extract info on a cell's channel
+sub handleChannel {
+  my $self = shift;
+  my $line = shift;
+  my $channel = (split(" ", $line))[3];
+  $channel =~ s/\)//;
+  $self->{'data'}->{$self->{'idx'}}->{'channel'} = $channel;
+}

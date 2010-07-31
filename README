@@ -1,0 +1,44 @@
+pifimon is a Perl script for monitoring wireless access points under
+Linux. It relies on iwlist. It parses the output of iwlist and 
+presents the results in neater way.
+
+On launching it presents a continuously updating list of visible
+access points. One AP can then be selected to display a histogram
+of signal strength.
+
+pifimon provides a means to extend it to support different wireless
+card drivers or versions of iwlist. See Drivers/README.
+
+Synopsis
+========
+
+pifimon [-d driver] [interface]
+
+ -d  use a driver from the Drivers directory. driver
+     is the filename without the .pm extension
+
+     interface is the interface to monitor. 
+
+Default values for both driver and interface can be set by changing 
+the values of $default_if and $default_driver in the configuration 
+section of the script.
+
+Copyright 2010 Chris Hastie (http://www.oak-wood.co.uk/)
+
+Concept inspired by scanmeter: 
+http://www.skifactz.com/wifi/Linux_Antenna_Tuning.htm
+Perl parsing of iwlist output based on Timothy Mills' wiscan.pl:
+http://jintoreedwine.wordpress.com/2008/08/04/how-i-shortened-the-iwlist-scan-output/
+
+pifimon is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+pifimon is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with pifimon.  If not, see <http://www.gnu.org/licenses/>.

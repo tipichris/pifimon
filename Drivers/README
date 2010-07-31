@@ -1,0 +1,64 @@
+WRITING DRIVERS FOR PIFIMON
+
+pifimon uses an inbuilt package, Iwlist, to parse the output of the 
+iwlist command. Drivers for different cards / versions of iwlist 
+consist of packages which extend Iwlist and override some of its
+methods.
+
+A driver named foo should be placed in the file Drivers/foo.pm and 
+should define a package Iwlist::foo which extends Iwlist.
+
+Whilst you can override any of Iwlist's methods, the ones you're most
+likely to need to override are listed below. The default methods all
+relate to the Broadcom wl driver, because that's what I have on the 
+laptop I developed pifimon on. In most cases a driver will only need
+to override one or two methods, if any.
+
+init_re
+=======
+This method sets the value of the regular expressions used to identify
+the lines in iwlist output that contain the information we're after. It
+must set values for the following keys of $self->{'re'}: cell, essid, 
+key, quality, enctype, authtype, frequency.
+
+Returns 1
+
+getsigunits
+===========
+Returns a string indicated the type of units that the driver returns
+signal strength in. Either dbm (for dBm) or pct (for percentage).
+
+getMacID
+========
+Takes as an argument the line identified by the regular expression in
+$self->{'re'}->{'cell'} and returns the cell's MAC id.
+
+The following methods all take as an argument a line from iwlist output
+identified by the relevent regular expression, and set the value of the 
+relevent key, or keys, of $self->{'data'}->{$self->{'idx'}}
+
+handleName
+==========
+sets $self->{'data'}->{$self->{'idx'}}->{'essid'}
+
+handleKey
+=========
+sets $self->{'data'}->{$self->{'idx'}}->{'enc'}
+
+handleQuality
+=============
+sets two values, although quality is not actually used by pifimon:
+$self->{'data'}->{$self->{'idx'}}->{'quality'}
+$self->{'data'}->{$self->{'idx'}}->{'sigLvl'}
+
+handleEncType
+=============
+sets $self->{'data'}->{$self->{'idx'}}->{'encType'}
+
+handleAuthType
+==============
+sets $self->{'data'}->{$self->{'idx'}}->{'authType'}
+
+handleChannel
+=============
+sets $self->{'data'}->{$self->{'idx'}}->{'channel'}
