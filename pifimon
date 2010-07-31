@@ -297,6 +297,7 @@ sub monitor {
     push (@graph, $gline);
     my ($columns, $rows) = Term::Size::chars *STDOUT{IO};
     binmode STDOUT, ":utf8"; # seems we have to redo this after getting the terminal size??
+    $rows = 24 unless $rows;
     while ($#graph > $rows - 4) {
       shift(@graph);
     }
