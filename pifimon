@@ -40,6 +40,7 @@
 use Term::ANSIColor;
 use Term::ReadKey;
 use Getopt::Std;
+use Term::Size;
 use strict;
 
 ##############################
@@ -86,7 +87,7 @@ my $keyhintfmt = color 'underline';
 ###############################
 
 
-my $VERSION = '0.1';
+my $VERSION = '0.2';
 
 # get the path to the script ready for use lib
 my $path;
@@ -209,16 +210,16 @@ sub monitor {
   my $id = shift;
   my $cell = $scanner->getcelldatabyid($id);
 
-  print $clear;
-  print $titlebarfmt;
-  my $title = "Signal strength for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")";
+  my $header = $clear;
+  $header .=  $titlebarfmt;
+  my $title .= "Signal strength for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")";
   my $diplayunits .= $sigunits eq 'pct' ? ' %  ' : 'dBm ';
   my $spaces = 76 - length($title);
-  print $title . " " x $spaces;
-  print $diplayunits;
-  print $reset;
-
-  print "\nPress Q to quit and return to cell list\n\n";
+  $header .= $title . " " x $spaces;
+  $header .= $diplayunits;
+  $header .= $reset;
+  $header .= "\nPress Q to quit and return to cell list\n\n";
+  #print $header;
 
   my $macid = $cell->{'macid'};
 
@@ -235,7 +236,7 @@ sub monitor {
     $maxred = 80 + $poor_theshold;
     $maxyellow = 80 + $moderate_theshold;
   }
-
+  my @graph;
   ReadMode 4; # Turn off controls keys
   while (1) {
     my $c;
@@ -249,6 +250,7 @@ sub monitor {
       last;
     }
     my $celldata = $scanner->getcelldatabymac($macid);
+    my $gline;
     if ($celldata->{'sigLvl'} && length($celldata->{'sigLvl'}) > 0 ) {
       my $barlength;
       if ($sigunits eq 'pct') {
@@ -278,20 +280,28 @@ sub monitor {
         $moderate_colourbar = $maxyellow - $maxred;
         $good_colourbar = $barlength - $maxyellow
       }
-      print $poor_colour;
-      print $displaychar x $poor_colourbar;
-      print $moderate_colour;
-      print $displaychar x $moderate_colourbar;
-      print $good_colour;
-      print $displaychar x $good_colourbar;
-      print $reset;
-      print " " x $spaces;
-      print $celldata->{'sigLvl'};
-      print '%' if $sigunits eq 'pct';
-      print "\n";
+      $gline = $poor_colour;
+      $gline .= $displaychar x $poor_colourbar;
+      $gline .= $moderate_colour;
+      $gline .= $displaychar x $moderate_colourbar;
+      $gline .= $good_colour;
+      $gline .= $displaychar x $good_colourbar;
+      $gline .= $reset;
+      $gline .= " " x $spaces;
+      $gline .= $celldata->{'sigLvl'};
+      $gline .= '%' if $sigunits eq 'pct';
+      $gline .= "";
     } else {
-      print "No signal for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")\n";
+      $gline = "No signal for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")";
     }
+    push (@graph, $gline);
+    my ($columns, $rows) = Term::Size::chars *STDOUT{IO};
+    binmode STDOUT, ":utf8"; # seems we have to redo this after getting the terminal size??
+    while ($#graph > $rows - 4) {
+      shift(@graph);
+    }
+    print $header;
+    print join("\n", @graph);
   }
   ReadMode 0; # Reset tty mode before exiting
 

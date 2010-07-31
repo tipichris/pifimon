@@ -26,6 +26,15 @@ section of the script.
 NB because `iwlist scan` requires root priviliges, pifimon must also
 be run as root.
 
+Requirements
+============
+A linux system with working wireless card
+iwlist
+Perl
+CPAN modules:
+  Term::Size (Ubuntu package: libterm-size-perl)
+  Term::ReadKey (Ubuntu package: libterm-readkey-perl)
+
 Copyright 2010 Chris Hastie (http://www.oak-wood.co.uk/)
 
 Concept inspired by scanmeter: 
