@@ -42,7 +42,9 @@ use Term::ReadKey;
 use Getopt::Std;
 use strict;
 
-### CONFIGURATION ###
+##############################
+####### CONFIGURATION ########
+##############################
 
 # default interface
 my $default_if = 'eth1';
@@ -79,7 +81,12 @@ my $titlebarfmt = color 'white on_blue bold';
 # format for the key hints
 my $keyhintfmt = color 'underline';
 
-### END CONFIGURATION ###
+###############################
+###### END CONFIGURATION ######
+###############################
+
+
+my $VERSION = '0.1';
 
 # get the path to the script ready for use lib
 my $path;
@@ -135,7 +142,8 @@ my $looping = 1;
 my $page = 1;
 
 my $menutext = "Monitor cell " . keyhint("nn") . ", toggle " . keyhint("L") . "ooping, ";
-$menutext .= keyhint("R") . "eset list, " . keyhint("N") . "ext/" . keyhint("P") . "revious page, " . keyhint("Q") . "uit\n";
+$menutext .= keyhint("R") . "eset list, ";
+$menutext .= keyhint("N") . "ext/" . keyhint("P") . "revious page, " . keyhint("Q") . "uit\n";
 
 
 continuouslist();
@@ -168,14 +176,16 @@ sub choices {
   } elsif (lc($key) eq 'r') {        # R: reset the list of cells seen this session
     $scanner->resetdata();
 
-  } elsif (lc($key) eq 'n') {
+  } elsif (lc($key) eq 'n') {        # N: next page
+    # cycle back to first page if we're at the last already
     if ($page * $cells_per_page >= $scanner->countcells() ) {
       $page = 1;
     } else {
       $page = $page + 1;
     }
 
-  } elsif (lc($key) eq 'p') {
+  } elsif (lc($key) eq 'p') {        # P: previous page
+    # if we're on first page, cycle round to last
     if ($page == 1) {
       my $n = $scanner->countcells() / $cells_per_page;
       $page = ($n == int($n)) ? $n : int($n + 1)
