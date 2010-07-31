@@ -19,7 +19,7 @@
 #
 # Copyright 2010 Chris Hastie (http://www.oak-wood.co.uk/)
 #
-# Concept inspired by scanmeter: 
+# Concept inspired by scanmeter:
 # http://www.skifactz.com/wifi/Linux_Antenna_Tuning.htm
 # Perl parsing of iwlist output based on Timothy Mills' wiscan.pl:
 # http://jintoreedwine.wordpress.com/2008/08/04/how-i-shortened-the-iwlist-scan-output/
@@ -59,6 +59,9 @@ my $moderate_theshold_dbm = -59;
 # used with drivers which return signal leval as percentage
 my $poor_theshold_pct = 15;
 my $moderate_theshold_pct = 35;
+
+# number of cells per page in cell list
+my $cells_per_page = 20;
 
 ########
 # The following display variables are set using Term::ANSIcolor
@@ -128,8 +131,11 @@ my $clear = `clear`;
 # start off looping the cell list
 my $looping = 1;
 
+# start on page 1
+my $page = 1;
+
 my $menutext = "Monitor cell " . keyhint("nn") . ", toggle " . keyhint("L") . "ooping, ";
-$menutext .= keyhint("R") . "eset list, " . keyhint("Q") . "uit\n";
+$menutext .= keyhint("R") . "eset list, " . keyhint("N") . "ext/" . keyhint("P") . "revious page, " . keyhint("Q") . "uit\n";
 
 
 continuouslist();
@@ -155,24 +161,36 @@ sub choices {
     } else {
       staticlist();
     }
+
   } elsif (lc($key) eq 'q') {        # Q: exit
     exit;
+
   } elsif (lc($key) eq 'r') {        # R: reset the list of cells seen this session
     $scanner->resetdata();
-    if ($looping) {
-      continuouslist();
+
+  } elsif (lc($key) eq 'n') {
+    if ($page * $cells_per_page >= $scanner->countcells() ) {
+      $page = 1;
     } else {
-      staticlist();
+      $page = $page + 1;
     }
+
+  } elsif (lc($key) eq 'p') {
+    if ($page == 1) {
+      my $n = $scanner->countcells() / $cells_per_page;
+      $page = ($n == int($n)) ? $n : int($n + 1)
+    } else {
+      $page = $page - 1;
+    }
+
   } elsif (exists($data->{$key})) {    # numeric: monitor that cell if it exists
     monitor($key);
   }
-  else {                            # default: return to cell list
-    if ($looping) {
-      continuouslist();
-    } else {
-      staticlist();
-    }
+
+  if ($looping) {
+    continuouslist();
+  } else {
+    staticlist();
   }
 }
 
@@ -234,7 +252,7 @@ sub monitor {
       $barlength = 1 if $barlength < 1;
       # for signals over -5dBm truncate bar to fit 80 characters
       $barlength = 75 if $barlength > 75;
-      
+
       # spaces to insert before signal level, to keep signal levels lined up
       my $spaces = 80 - 4 - $barlength;
 
@@ -278,7 +296,7 @@ sub monitor {
 sub staticlist {
   liststations($menutext);
   print "\n";
-  print "Looping is off\n";
+  print "Looping is off: ";
   my $key = '';
   ReadMode 4;
   while (1) {
@@ -343,6 +361,9 @@ sub liststations {
     return 0;
   }
 
+  my $first = ($page - 1) * $cells_per_page + 1;
+  my $last = $page * $cells_per_page;
+
   my $units = $sigunits eq 'pct' ? 'Sig%' : 'dBm';
   my $data = $scanner->getdata();
   print $clear;
@@ -354,6 +375,9 @@ sub liststations {
   print $reset;
   print "\n";
   foreach my $idx (sort {$a <=> $b} keys %{$data}) {
+    next if $idx < $first;
+    last if $idx > $last;
+
     my $cell = $data->{$idx};
     print "$idx\t" . $cell->{'macid'} . "\t";
     if ($cell->{'sigLvl'} && $cell->{'sigLvl'} < $poor_theshold) {
@@ -399,7 +423,7 @@ sub scan {
   my $self = shift;
   my $cmd = 'iwlist ' . $self->{'if'} . ' scan 2> /dev/null';
 
-  my @myLines = `$cmd`; 
+  my @myLines = `$cmd`;
   return 0 unless (@myLines);
 
   my $start = 1;
@@ -515,13 +539,18 @@ sub resetdata {
   $self->{'cellidx'} = {};
 }
 
+sub countcells {
+  my $self = shift;
+  return $self->{'maxidx'} - 1;
+}
+
 #############################
 # The following subs can be redefined
 # in a descendant package to cope with
 # other drivers or versions of iwlist
 
 # initialise the regular expressions used to identify
-# which lines hold important data. 
+# which lines hold important data.
 sub init_re {
   my $self = shift;
   $self->{'re'}->{'cell'} = qr/^\s*Cell [0-9][0-9]/;
