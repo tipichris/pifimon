@@ -389,7 +389,7 @@ sub liststations {
   print $clear;
   print $topmsg;
   print $titlebarfmt;
-  print "ID\tMacID\t\t\t";
+  print "ID\tMAC ID\t\t\t";
   print $units;
   print "\tChan\tEncryption\tESSID\t";
   print $reset;
