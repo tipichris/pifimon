@@ -86,7 +86,7 @@ my $keyhintfmt = color 'underline';
 ###############################
 
 
-my $VERSION = '0.2';
+my $VERSION = '0.3rc1';
 
 # get the path to the script ready for use lib
 my $path;
