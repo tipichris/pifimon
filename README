@@ -79,6 +79,8 @@ or on Ubuntu, use apt-get:
 Then unpack the tarball, eg:
 
   tar -xzvf tipichris-pifimon-xxxxx.tar.gz
+or
+  tar -xzvf pifimon-xxx.tar.gz
 
 That's about it.
 
