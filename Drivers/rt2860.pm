@@ -1,4 +1,5 @@
 # rt2860 driver for pifimon
+# For Ralink rt2860 chipset
 
 # This file is part of pifimon, a Perl script for monitoring wireless
 # networks under Linux

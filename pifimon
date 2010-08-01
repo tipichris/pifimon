@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# pifimon - a Linux wifi monitoring tool written in Perl
+# Pifimon - a Linux wifi monitoring tool written in Perl
 # depends on iwlist
 #
 # Synopsis:
@@ -24,23 +24,22 @@
 # Perl parsing of iwlist output based on Timothy Mills' wiscan.pl:
 # http://jintoreedwine.wordpress.com/2008/08/04/how-i-shortened-the-iwlist-scan-output/
 #
-# pifimon is free software: you can redistribute it and/or modify
+# Pifimon is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# pifimon is distributed in the hope that it will be useful,
+# Pifimon is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with pifimon.  If not, see <http://www.gnu.org/licenses/>.
+# along with Pifimon.  If not, see <http://www.gnu.org/licenses/>.
 
 use Term::ANSIColor;
 use Term::ReadKey;
 use Getopt::Std;
-use Term::Size;
 use strict;
 
 ##############################
@@ -91,12 +90,19 @@ my $VERSION = '0.2';
 
 # get the path to the script ready for use lib
 my $path;
+my $use_term_size;
 BEGIN {
   my $mycmd;
   if ($0 =~ m{^([A-Za-z0-9/._=+-]+)$}) {
     $mycmd = $1 # untaint
   }
   $path = substr($mycmd, 0, rindex( $mycmd,'/'));
+
+  # do we have Term::Size available?
+  $use_term_size = 1;
+  eval {
+    require Term::Size;
+  } or $use_term_size = 0;
 }
 
 use lib $path;
@@ -210,9 +216,12 @@ sub monitor {
   my $id = shift;
   my $cell = $scanner->getcelldatabyid($id);
 
+  my $macid = $cell->{'macid'};
+  my $essid = $cell->{'essid'};
+  
   my $header = $clear;
   $header .=  $titlebarfmt;
-  my $title .= "Signal strength for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")";
+  my $title .= "Signal strength for $macid ($essid)";
   my $diplayunits .= $sigunits eq 'pct' ? ' %  ' : 'dBm ';
   my $spaces = 76 - length($title);
   $header .= $title . " " x $spaces;
@@ -220,8 +229,6 @@ sub monitor {
   $header .= $reset;
   $header .= "\nPress Q to quit and return to cell list\n\n";
   #print $header;
-
-  my $macid = $cell->{'macid'};
 
   # Display character: here we use a unicode block character
   my $displaychar = "\N{U+2588}";
@@ -244,7 +251,7 @@ sub monitor {
     if (lc($c) eq 'q' ) {    # exit if we get a Q
       last;
     }
-    unless ($scanner->scan()) {
+    unless ($scanner->scan($essid)) {
       print "error runnng scan\n";
       $looping = 0;
       last;
@@ -295,9 +302,7 @@ sub monitor {
       $gline = "No signal for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")";
     }
     push (@graph, $gline);
-    my ($columns, $rows) = Term::Size::chars *STDOUT{IO};
-    binmode STDOUT, ":utf8"; # seems we have to redo this after getting the terminal size??
-    $rows = 24 unless $rows;
+    my ($columns, $rows) = gettermsize();
     while ($#graph > $rows - 4) {
       shift(@graph);
     }
@@ -415,7 +420,20 @@ sub liststations {
   return 1;
 }
 
-
+sub gettermsize {
+  my @size;
+  if ($use_term_size) {
+    @size = Term::Size::chars( *STDOUT{IO} );
+    binmode STDOUT, ":utf8"; # seems we have to redo this after getting the terminal size??
+    $size[0] = 80 unless $size[0];
+    $size[1] = 24 unless $size[1];
+  }
+  else {
+    $size[0] = 80;
+    $size[1] = 24;
+  }
+  return @size;
+}
 
 
 
@@ -442,7 +460,12 @@ sub new {
 sub scan {
 
   my $self = shift;
-  my $cmd = 'iwlist ' . $self->{'if'} . ' scan 2> /dev/null';
+  my $in_essid = shift;
+  my $cmd = 'iwlist ' . $self->{'if'} . ' scan ';
+  # not all drivers support restricting the scan to a given essid
+  # but if it does it'll save a bit of processing
+  $cmd .= $in_essid?"essid $in_essid ":'';
+  $cmd .= '2> /dev/null';
 
   my @myLines = `$cmd`;
   return 0 unless (@myLines);

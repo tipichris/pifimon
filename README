@@ -1,16 +1,16 @@
-pifimon is a Perl script for monitoring wireless access points under
-Linux. It relies on iwlist. It parses the output of iwlist and 
-presents the results in neater way.
+Pifimon is a Perl script for monitoring wireless access points under
+Linux. It relies on iwlist, part of the wirelesstools package. It 
+parses the output of iwlist and presents the results in a neater way.
 
 On launching it presents a continuously updating list of visible
 access points. One AP can then be selected to display a histogram
 of signal strength.
 
-pifimon provides a means to extend it to support different wireless
+Pifimon provides a means to extend it to support different wireless
 card drivers or versions of iwlist. See Drivers/README.
 
-Synopsis
-========
+Usage
+=====
 
 pifimon [-d driver] [interface]
 
@@ -20,11 +20,36 @@ pifimon [-d driver] [interface]
      interface is the interface to monitor. 
 
 Default values for both driver and interface can be set by changing 
-the values of $default_if and $default_driver in the configuration 
+the values of $default_driver and $default_if in the configuration 
 section of the script.
 
-NB because `iwlist scan` requires root priviliges, pifimon must also
+*NB* because `iwlist scan` requires root priviliges, Pifimon must also
 be run as root.
+
+*Cell list screen*
+
+The cell list screen displays a list of all cells that have been seen
+since Pifimon was started, or since the list was reset. Cells not 
+currently visible will have no signal strength reported.
+
+Enter a cell number followed by enter/return to monitor that cell and
+display a histogram of its signal strength.
+
+Press one of the following keys for other actions:
+L - toggle looping (continuous updating of the cell list)
+R - reset the list
+N - view the next screen in the list, if the list extends over more
+    than one screen
+P - view the previous screen in the list
+Q - quit
+
+*Histogram screen*
+
+The histogram screen displays a histogram representing the signal
+strength for the chosen cell. Signal strength is given, either in 
+dBm or as a percentage, depending on the driver.
+
+Press Q to quit and return to the cell list screen.
 
 Requirements
 ============
@@ -32,9 +57,32 @@ A linux system with working wireless card
 iwlist
 Perl
 CPAN modules:
-  Term::Size (Ubuntu package: libterm-size-perl)
-  Term::ReadKey (Ubuntu package: libterm-readkey-perl)
+  Required:
+    Term::ReadKey (Ubuntu package: libterm-readkey-perl)
+  Recommended:
+    Term::Size (Ubuntu package: libterm-size-perl)
 
+Without Term::Size the console will be assumed to be 24 rows high and
+the histogram will not be adjusted to fit if it isn't.
+
+Installation
+============
+Make sure your system meets the requirements (see above). If you need
+to install CPAN modules use something like
+
+  cpan install Term::Size
+
+or on Ubuntu, use apt-get:
+
+  apt-get install libterm-size-perl
+
+Then unpack the tarball, eg:
+
+  tar -xzvf tipichris-pifimon-xxxxx.tar.gz
+
+That's about it.
+
+---
 Copyright 2010 Chris Hastie (http://www.oak-wood.co.uk/)
 
 Concept inspired by scanmeter: 
@@ -42,15 +90,15 @@ http://www.skifactz.com/wifi/Linux_Antenna_Tuning.htm
 Perl parsing of iwlist output based on Timothy Mills' wiscan.pl:
 http://jintoreedwine.wordpress.com/2008/08/04/how-i-shortened-the-iwlist-scan-output/
 
-pifimon is free software: you can redistribute it and/or modify
+Pifimon is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-pifimon is distributed in the hope that it will be useful,
+Pifimon is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with pifimon.  If not, see <http://www.gnu.org/licenses/>.
+along with Pifimon.  If not, see <http://www.gnu.org/licenses/>.

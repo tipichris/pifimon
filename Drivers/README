@@ -1,6 +1,6 @@
 WRITING DRIVERS FOR PIFIMON
 
-pifimon uses an inbuilt package, Iwlist, to parse the output of the 
+Pifimon uses an inbuilt package, Iwlist, to parse the output of the 
 iwlist command. Drivers for different cards / versions of iwlist 
 consist of packages which extend Iwlist and override some of its
 methods.
@@ -33,6 +33,7 @@ getMacID
 Takes as an argument the line identified by the regular expression in
 $self->{'re'}->{'cell'} and returns the cell's MAC id.
 
+---
 The following methods all take as an argument a line from iwlist output
 identified by the relevent regular expression, and set the value of the 
 relevent key, or keys, of $self->{'data'}->{$self->{'idx'}}

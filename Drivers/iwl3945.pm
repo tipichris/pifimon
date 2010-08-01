@@ -1,6 +1,7 @@
 # iwl3945 driver for pifimon.
 # Doesn't actually do anything, as the default wl driver seems to 
 # work fine
+# For intel iwl3945
 
 # This file is part of pifimon, a Perl script for monitoring wireless
 # networks under Linux

@@ -1,4 +1,7 @@
 # zd1211rw driver for pifimon. 
+# for the ZyDAS ZD1211 chipset (rebranded Atheros AR5007UG/AR2524/AR5524)
+# widely used in USB wireless devices
+
 # returns signal level in percentage.
 
 # This file is part of pifimon, a Perl script for monitoring wireless
