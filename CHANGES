@@ -1,0 +1,19 @@
+20100802
+## CHANGE OF API ##
+A change to the API for writing drivers. Methods now return
+values, rather than setting the values directly.
+
+20100802
+Added some handling of exceptions to ensure ReadMode is
+always reset before dieing.
+
+20100802
+Removed need for  Term::Size, making use of functions in
+Term::ReadKey instead. Term::Size
+does something funny such that after the histogram has 
+been displayed text at the bottom of the static cell list
+(looping off) is not visible.
+
+20100801
+Added ability to do a simulated scan using a file dumped
+out from iwlist. Useful for creating drivers

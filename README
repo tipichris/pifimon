@@ -12,12 +12,15 @@ card drivers or versions of iwlist. See Drivers/README.
 Usage
 =====
 
-pifimon [-d driver] [interface]
+pifimon [-v][-d driver] [interface]
+pifimon [-d driver] file filename
 
  -d  use a driver from the Drivers directory. driver
      is the filename without the .pm extension
 
-     interface is the interface to monitor. 
+  -v print version and exit
+
+     interface is the interface to monitor.
 
 Default values for both driver and interface can be set by changing 
 the values of $default_driver and $default_if in the configuration 
@@ -25,6 +28,12 @@ section of the script.
 
 *NB* because `iwlist scan` requires root priviliges, Pifimon must also
 be run as root.
+
+The specialcase 
+  pifimon [-d driver] file filename
+allows a simulated scan to be run using the file 'filename' as the input.
+This should be a dump of iwlist output. This was added to allow drivers
+for additional cards to be developed without needing access to the card
 
 *Cell list screen*
 
@@ -59,25 +68,17 @@ Perl
 CPAN modules:
   Required:
     Term::ReadKey (Ubuntu package: libterm-readkey-perl)
-  Recommended:
-    Term::Size (Ubuntu package: libterm-size-perl)
-
-Without Term::Size the console will be assumed to be 24 rows high and
-the histogram will not be adjusted to fit if it isn't.
 
 Installation
 ============
 Make sure your system meets the requirements (see above). If you need
 to install CPAN modules use something like
+  cpan Term::ReadKey
 
-  cpan install Term::Size
-
-or on Ubuntu, use apt-get:
-
-  apt-get install libterm-size-perl
+Or on Ubuntu you can install the package with apt-get
+  apt-get install libterm-readkey-perl
 
 Then unpack the tarball, eg:
-
   tar -xzvf tipichris-pifimon-xxxxx.tar.gz
 or
   tar -xzvf pifimon-xxx.tar.gz

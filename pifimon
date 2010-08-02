@@ -86,35 +86,44 @@ my $keyhintfmt = color 'underline';
 ###############################
 
 
-my $VERSION = '0.3rc1';
+my $VERSION = '0.4rc1';
 
 # get the path to the script ready for use lib
 my $path;
-my $use_term_size;
 BEGIN {
   my $mycmd;
   if ($0 =~ m{^([A-Za-z0-9/._=+-]+)$}) {
     $mycmd = $1 # untaint
   }
   $path = substr($mycmd, 0, rindex( $mycmd,'/'));
-
-  # do we have Term::Size available?
-  $use_term_size = 1;
-  eval {
-    require Term::Size;
-  } or $use_term_size = 0;
 }
 
 use lib $path;
 
 my $reset = color 'reset';
 
+# make some attempt not to mangle the terminal if we die
+$SIG{__DIE__} = sub
+{
+  ReadMode 0;
+  print $reset;
+  print STDERR "Caught die. Exiting. $@";
+  return 1;
+};
+
 my %opts;
 
-getopts('d:', \%opts);
+getopts('vd:', \%opts);
+
+if ($opts{'v'}) {
+  print "pifimon version $VERSION\n";
+  exit;
+}
 
 my $if = shift;
 $if = $default_if unless $if;
+
+my $iwlistfile = shift;
 
 # allows us to print 'wide characters' such as \N{U+2588}
 binmode STDOUT, ":utf8";
@@ -122,9 +131,9 @@ binmode STDOUT, ":utf8";
 
 my $driver = $default_driver;
 $driver = $opts{'d'} if ($opts{'d'});
-
 require "Drivers/" . $driver . '.pm';
-my $scanner = "Iwlist::$driver"->new($if);
+
+my $scanner = "Iwlist::$driver"->new($if, $iwlistfile);
 
 
 my $sigunits = $scanner->getsigunits();
@@ -178,6 +187,7 @@ sub choices {
     }
 
   } elsif (lc($key) eq 'q') {        # Q: exit
+    print $reset . "\n";
     exit;
 
   } elsif (lc($key) eq 'r') {        # R: reset the list of cells seen this session
@@ -297,7 +307,6 @@ sub monitor {
       $gline .= " " x $spaces;
       $gline .= $celldata->{'sigLvl'};
       $gline .= '%' if $sigunits eq 'pct';
-      $gline .= "";
     } else {
       $gline = "No signal for " . $cell->{'macid'} . " (" . $cell->{'essid'} . ")";
     }
@@ -421,18 +430,10 @@ sub liststations {
 }
 
 sub gettermsize {
-  my @size;
-  if ($use_term_size) {
-    @size = Term::Size::chars( *STDOUT{IO} );
-    binmode STDOUT, ":utf8"; # seems we have to redo this after getting the terminal size??
-    $size[0] = 80 unless $size[0];
-    $size[1] = 24 unless $size[1];
-  }
-  else {
-    $size[0] = 80;
-    $size[1] = 24;
-  }
-  return @size;
+  my @size = Term::ReadKey::GetTerminalSize( *STDIN );
+  $size[0] = 80 unless $size[0];
+  $size[1] = 24 unless $size[1];
+  return @size[0, 1];
 }
 
 
@@ -441,11 +442,13 @@ sub gettermsize {
 package Iwlist;
 
 use strict;
+use Data::Dumper;
 
 sub new {
     my $class = shift;
     my $self  = {};
     $self->{'if'}=shift;
+    $self->{'iwlistfile'} = shift;
     $self->{'data'} = {};
     $self->{'idx'} = 0;
     $self->{'maxidx'} = 1;
@@ -461,13 +464,25 @@ sub scan {
 
   my $self = shift;
   my $in_essid = shift;
-  my $cmd = 'iwlist ' . $self->{'if'} . ' scan ';
-  # not all drivers support restricting the scan to a given essid
-  # but if it does it'll save a bit of processing
-  $cmd .= $in_essid?"essid $in_essid ":'';
-  $cmd .= '2> /dev/null';
+  my @myLines;
+  if ($self->{'if'} eq 'file') {
+    unless (open(FILE, $self->{'iwlistfile'} )) {
+      die "couldn't open file " . $self->{'iwlistfile'};
+      #return 0;
+    }
+    @myLines = <FILE>;
+    close (FILE);
+    # sleep, or the file reruns way too quick
+    sleep 1;
+  } else {
+    my $cmd = 'iwlist ' . $self->{'if'} . ' scan ';
+    # not all drivers support restricting the scan to a given essid
+    # but if it does it'll save a bit of processing
+    $cmd .= $in_essid?"essid $in_essid ":'';
+    $cmd .= '2> /dev/null';
 
-  my @myLines = `$cmd`;
+    @myLines = `$cmd`;
+  }
   return 0 unless (@myLines);
 
   my $start = 1;
@@ -506,22 +521,24 @@ sub scan {
 
     }
     if ($_ =~ $self->{'re'}->{'essid'}) {
-      $self->handleName($_);
+      $self->{'data'}->{$self->{'idx'}}->{'essid'} = $self->handleName($_);
     }
     elsif($_ =~ $self->{'re'}->{'key'}) {
-      $self->handleKey($_);
+      $self->{'data'}->{$self->{'idx'}}->{'enc'} = $self->handleKey($_);
     }
     elsif($_ =~ $self->{'re'}->{'quality'}) {
-      $self->handleQuality($_);
+      my @qualarray = $self->handleQuality($_);
+      $self->{'data'}->{$self->{'idx'}}->{'quality'} = $qualarray[0];
+      $self->{'data'}->{$self->{'idx'}}->{'sigLvl'} = $qualarray[1];
     }
     elsif($_ =~ $self->{'re'}->{'enctype'}) {
-      $self->handleEncType($_);
+      $self->{'data'}->{$self->{'idx'}}->{'encType'} = $self->handleEncType($_);
     }
     elsif($_ =~ $self->{'re'}->{'authtype'}) {
-      $self->handleAuthType($_);
+      $self->{'data'}->{$self->{'idx'}}->{'authType'} = $self->handleAuthType($_);
     }
     elsif($_ =~ $self->{'re'}->{'frequency'}) {
-      $self->handleChannel($_);
+      $self->{'data'}->{$self->{'idx'}}->{'channel'} = $self->handleChannel($_);
     }
   }
   # add the final index
@@ -541,14 +558,12 @@ sub scan {
 # for debugging: dump out our data
 sub dumpdata {
  my $self = shift;
- use Data::Dumper;
  print Dumper($self->{'data'});
 }
 
 # for debugging: dump out our cell index
 sub dumpindex {
  my $self = shift;
- use Data::Dumper;
  print Dumper($self->{'cellidx'});
 }
 
@@ -622,7 +637,7 @@ sub handleName {
   if ($name =~ /^\"(.*)\"$/) {
     $name = $1;
   }
-  $self->{'data'}->{$self->{'idx'}}->{'essid'} = $name;
+  return $name;
 }
 
 # extract if a cell is using encryption or not
@@ -630,7 +645,7 @@ sub handleKey {
   my $self = shift;
   my $line = shift;
   my $enc = (split(":", $line))[1];
-  $self->{'data'}->{$self->{'idx'}}->{'enc'} = $enc;
+  return $enc;
 }
 
 # extract a cell's MAC
@@ -650,8 +665,7 @@ sub handleQuality {
 
   my $quality = (split(":", $qualArr[0]))[1];
   my $sigLvl = (split(":", $qualArr[2]))[1];
-  $self->{'data'}->{$self->{'idx'}}->{'quality'} = $quality;
-  $self->{'data'}->{$self->{'idx'}}->{'sigLvl'} = $sigLvl;
+  return ($quality, $sigLvl);
 }
 
 # extact info on version of WPA in use by cell
@@ -659,7 +673,7 @@ sub handleEncType {
   my $self = shift;
   my $line = shift;
   my $encType = "WPA v".($line =~ ".*[0-9]");
-  $self->{'data'}->{$self->{'idx'}}->{'encType'} = $encType;
+  return $encType;
 }
 
 # extract info on type of authentication supported
@@ -667,7 +681,7 @@ sub handleAuthType {
   my $self = shift;
   my $line = shift;
   my $authType = (split(" ", $line))[4];
-  $self->{'data'}->{$self->{'idx'}}->{'authType'} = $authType;
+  return $authType;
 }
 
 # extract info on a cell's channel
@@ -676,5 +690,5 @@ sub handleChannel {
   my $line = shift;
   my $channel = (split(" ", $line))[3];
   $channel =~ s/\)//;
-  $self->{'data'}->{$self->{'idx'}}->{'channel'} = $channel;
+  return $channel;
 }

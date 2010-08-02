@@ -48,6 +48,5 @@ sub handleQuality {
   # crudely convert to dBm
   # $sigLvl = sprintf("%.0f", ($sigLvl * 0.7) - 70);
 
-  $self->{'data'}->{$self->{'idx'}}->{'quality'} = $quality;
-  $self->{'data'}->{$self->{'idx'}}->{'sigLvl'} = $sigLvl;
+  return ($quality, $sigLvl);
 }

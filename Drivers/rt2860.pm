@@ -45,5 +45,5 @@ sub handleChannel {
   my $self = shift;
   my $line = shift;
   my $channel = (split(":", $line))[1];
-  $self->{'data'}->{$self->{'idx'}}->{'channel'} = $channel;
+  return $channel;
 }

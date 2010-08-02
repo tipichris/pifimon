@@ -19,7 +19,8 @@ init_re
 This method sets the value of the regular expressions used to identify
 the lines in iwlist output that contain the information we're after. It
 must set values for the following keys of $self->{'re'}: cell, essid, 
-key, quality, enctype, authtype, frequency.
+key, quality, enctype, authtype, frequency. Lines identified by these
+regular expressions are passed to the methods listed below.
 
 Returns 1
 
@@ -35,31 +36,33 @@ $self->{'re'}->{'cell'} and returns the cell's MAC id.
 
 ---
 The following methods all take as an argument a line from iwlist output
-identified by the relevent regular expression, and set the value of the 
-relevent key, or keys, of $self->{'data'}->{$self->{'idx'}}
+identified by the relevent regular expression, and return a value (or 
+values) extracted from that.
 
 handleName
 ==========
-sets $self->{'data'}->{$self->{'idx'}}->{'essid'}
+Returns the cell's ESSID
 
 handleKey
 =========
-sets $self->{'data'}->{$self->{'idx'}}->{'enc'}
+Returns 'on' or 'off', depending on whether encryption is in use.
 
 handleQuality
 =============
-sets two values, although quality is not actually used by pifimon:
-$self->{'data'}->{$self->{'idx'}}->{'quality'}
-$self->{'data'}->{$self->{'idx'}}->{'sigLvl'}
+Returns an array of two values, link quality and signal strength.
+Quality is not used by Pifimon
 
 handleEncType
 =============
-sets $self->{'data'}->{$self->{'idx'}}->{'encType'}
+Returns a string indicating the encryption type and version in use
+Note that encryption is assumed to be WEP unless this method is 
+called and returns something else.
 
 handleAuthType
 ==============
-sets $self->{'data'}->{$self->{'idx'}}->{'authType'}
+Returns the type of authentication supported
+(not used by Pifimon)
 
 handleChannel
 =============
-sets $self->{'data'}->{$self->{'idx'}}->{'channel'}
+Returns the channel being used

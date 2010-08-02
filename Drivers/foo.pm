@@ -40,8 +40,8 @@ sub handleQuality {
   my $quality = (split(":", $qualArr[0]))[1];
   # my $sigLvl = (split(":", $qualArr[2]))[1];
   my $sigLvl = 15 * (split(/\//, $quality))[0];
-  $self->{'data'}->{$self->{'idx'}}->{'quality'} = $quality;
-  $self->{'data'}->{$self->{'idx'}}->{'sigLvl'} = $sigLvl;
+  my @return = ($quality, $sigLvl);
+  return ($quality, $sigLvl);
 }
 
 
