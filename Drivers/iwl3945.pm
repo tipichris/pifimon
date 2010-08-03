@@ -28,3 +28,14 @@ use vars qw(@ISA);
 
 @ISA = qw(Iwlist);
 
+# extract info on a cell's signal quality and strength
+sub handleQuality {
+  my $self = shift;
+  my $qual = shift;
+
+  my @qualArr = split(" ", $qual);
+
+  my $quality = (split("=", $qualArr[0]))[1];
+  my $sigLvl = (split(":", $qualArr[2]))[1];
+  return ($quality, $sigLvl);
+}

@@ -1,3 +1,9 @@
+20100803
+iwl3945 driver reports quality properly
+
+20100803
+Improved error checking
+
 20100802
 ## CHANGE OF API ##
 A change to the API for writing drivers. Methods now return

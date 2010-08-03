@@ -86,7 +86,7 @@ my $keyhintfmt = color 'underline';
 ###############################
 
 
-my $VERSION = '0.4rc1';
+my $VERSION = '0.4rc2';
 
 # get the path to the script ready for use lib
 my $path;
@@ -107,7 +107,7 @@ $SIG{__DIE__} = sub
 {
   ReadMode 0;
   print $reset;
-  print STDERR "Caught die. Exiting. $@";
+  print STDERR $!, ": " if $!;
   return 1;
 };
 
@@ -131,7 +131,15 @@ binmode STDOUT, ":utf8";
 
 my $driver = $default_driver;
 $driver = $opts{'d'} if ($opts{'d'});
-require "Drivers/" . $driver . '.pm';
+#unless (eval { require "Drivers/" . $driver . '.pm'; } ) {
+#  print STDERR "Driver '$driver' not found. Driver name must by the name\n";
+#  print STDERR  "of a file in the Drivers directory, without the .pm extension\n";
+#  exit 1;
+#}
+eval {
+  local $SIG{__DIE__} = 'DEFAULT';
+  require "Drivers/" . $driver . '.pm';
+} or die "Driver '$driver' not found. Driver name must by the name\nof a file in the Drivers directory, without the .pm extension\n";
 
 my $scanner = "Iwlist::$driver"->new($if, $iwlistfile);
 
@@ -161,13 +169,13 @@ my $menutext = "Monitor cell " . keyhint("nn") . ", toggle " . keyhint("L") . "o
 $menutext .= keyhint("R") . "eset list, ";
 $menutext .= keyhint("N") . "ext/" . keyhint("P") . "revious page, " . keyhint("Q") . "uit\n";
 
-
-continuouslist();
-
 #  $scanner->scan() || print "error\n";
 #  $scanner->dumpdata();
 #  $scanner->dumpindex();
 #  exit;
+
+
+continuouslist();
 
 sub keyhint {
   my $text = shift;
@@ -468,7 +476,6 @@ sub scan {
   if ($self->{'if'} eq 'file') {
     unless (open(FILE, $self->{'iwlistfile'} )) {
       die "couldn't open file " . $self->{'iwlistfile'};
-      #return 0;
     }
     @myLines = <FILE>;
     close (FILE);
@@ -479,9 +486,13 @@ sub scan {
     # not all drivers support restricting the scan to a given essid
     # but if it does it'll save a bit of processing
     $cmd .= $in_essid?"essid $in_essid ":'';
-    $cmd .= '2> /dev/null';
+    #$cmd .= '2> /dev/null';
 
-    @myLines = `$cmd`;
+    eval {
+      local $SIG{__DIE__} = 'DEFAULT';
+      @myLines = `$cmd`;
+    } or die "Execution of iwlist failed (command '$cmd'): $@";
+
   }
   return 0 unless (@myLines);
 
