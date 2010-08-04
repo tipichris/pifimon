@@ -83,6 +83,14 @@ Then unpack the tarball, eg:
 or
   tar -xzvf pifimon-xxx.tar.gz
 
+Change into the directory you just unpacked to and make sure the script
+is executable; eg
+  cd pifimon-xxx
+  chmod 755 pifimon
+
+Then run the script with 
+  ./pifimon
+
 That's about it.
 
 ---

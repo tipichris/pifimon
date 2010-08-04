@@ -131,11 +131,6 @@ binmode STDOUT, ":utf8";
 
 my $driver = $default_driver;
 $driver = $opts{'d'} if ($opts{'d'});
-#unless (eval { require "Drivers/" . $driver . '.pm'; } ) {
-#  print STDERR "Driver '$driver' not found. Driver name must by the name\n";
-#  print STDERR  "of a file in the Drivers directory, without the .pm extension\n";
-#  exit 1;
-#}
 eval {
   local $SIG{__DIE__} = 'DEFAULT';
   require "Drivers/" . $driver . '.pm';

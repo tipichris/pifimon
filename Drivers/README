@@ -26,7 +26,7 @@ Returns 1
 
 getsigunits
 ===========
-Returns a string indicated the type of units that the driver returns
+Returns a string indicating the type of units that the driver returns
 signal strength in. Either dbm (for dBm) or pct (for percentage).
 
 getMacID
