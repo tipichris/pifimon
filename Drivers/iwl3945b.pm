@@ -1,6 +1,5 @@
-# iwl3945 driver for pifimon.
-# For intel iwl3945; see also iwl3945b
-# Works with earlier versions of Ubuntu (eg 8.04)
+# iwl3945b driver for pifimon.
+# For intel iwl3945; see also iwl3945. Works with Ubuntu 10.04
 
 # This file is part of pifimon, a Perl script for monitoring wireless
 # networks under Linux
@@ -20,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pifimon.  If not, see <http://www.gnu.org/licenses/>.
 
-package Iwlist::iwl3945;
+package Iwlist::iwl3945b;
 
 use strict;
 use vars qw(@ISA);
@@ -35,6 +34,6 @@ sub handleQuality {
   my @qualArr = split(" ", $qual);
 
   my $quality = (split("=", $qualArr[0]))[1];
-  my $sigLvl = (split(":", $qualArr[2]))[1];
+  my $sigLvl = (split("=", $qualArr[2]))[1];
   return ($quality, $sigLvl);
 }
