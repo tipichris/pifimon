@@ -1,0 +1,42 @@
+##############################
+####### CONFIGURATION ########
+##############################
+
+# default interface
+$default_if = 'wlan0';
+
+# default driver
+$default_driver = 'wl';
+
+# values, in dBm below which we display red / yellow
+# used with drivers that return signal level in dBm
+$poor_theshold_dbm = -69;
+$moderate_theshold_dbm = -59;
+
+# values in % below which we display red / yellow
+# used with drivers which return signal leval as percentage
+$poor_theshold_pct = 15;
+$moderate_theshold_pct = 35;
+
+# number of cells per page in cell list
+$cells_per_page = 20;
+
+########
+# The following display variables are set using Term::ANSIcolor
+# and require the appropriate syntax
+########
+
+# colours for poor, moderate and good signal strenth
+$poor_col= color 'red';
+$moderate_col= color 'cyan'; # yellow seems to display as dark grey on ubuntu console :(
+$good_col= color 'green';
+
+# format for the title bar
+$titlebarfmt = color 'white on_blue bold';
+
+# format for the key hints
+$keyhintfmt = color 'underline';
+
+###############################
+###### END CONFIGURATION ######
+###############################

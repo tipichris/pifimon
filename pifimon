@@ -47,23 +47,23 @@ use strict;
 ##############################
 
 # default interface
-my $default_if = 'eth1';
+our $default_if = 'wlan0';
 
 # default driver
-my $default_driver = 'wl';
+our $default_driver = 'wl';
 
 # values, in dBm below which we display red / yellow
 # used with drivers that return signal level in dBm
-my $poor_theshold_dbm = -69;
-my $moderate_theshold_dbm = -59;
+our $poor_theshold_dbm = -69;
+our $moderate_theshold_dbm = -59;
 
 # values in % below which we display red / yellow
 # used with drivers which return signal leval as percentage
-my $poor_theshold_pct = 15;
-my $moderate_theshold_pct = 35;
+our $poor_theshold_pct = 15;
+our $moderate_theshold_pct = 35;
 
 # number of cells per page in cell list
-my $cells_per_page = 20;
+our $cells_per_page = 20;
 
 ########
 # The following display variables are set using Term::ANSIcolor
@@ -71,15 +71,15 @@ my $cells_per_page = 20;
 ########
 
 # colours for poor, moderate and good signal strenth
-my $poor_colour = color 'red';
-my $moderate_colour = color 'cyan'; # yellow seems to display as dark grey on ubuntu console :(
-my $good_colour = color 'green';
+our $poor_colour = color 'red';
+our $moderate_colour = color 'cyan'; # yellow seems to display as dark grey on ubuntu console :(
+our $good_colour = color 'green';
 
 # format for the title bar
-my $titlebarfmt = color 'white on_blue bold';
+our $titlebarfmt = color 'white on_blue bold';
 
 # format for the key hints
-my $keyhintfmt = color 'underline';
+our $keyhintfmt = color 'underline';
 
 ###############################
 ###### END CONFIGURATION ######
@@ -99,6 +99,15 @@ BEGIN {
 }
 
 use lib $path;
+
+my $config_file = $path . '/config';
+if( -e($config_file)) {
+	unless (my $return = do $config_file) {
+		warn "couldn't parse $config_file: $@" if $@;
+		warn "couldn't do $config_file: $!"    unless defined $return;
+		warn "couldn't run $config_file"       unless $return;
+	}
+}
 
 my $reset = color 'reset';
 

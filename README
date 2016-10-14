@@ -24,7 +24,8 @@ pifimon [-d driver] file filename
 
 Default values for both driver and interface can be set by changing 
 the values of $default_driver and $default_if in the configuration 
-section of the script.
+file. This file is named 'config' and should be in the same directory
+as pifimon. An example is included as config.dist.
 
 *NB* because `iwlist scan` requires root priviliges, Pifimon must also
 be run as root.
