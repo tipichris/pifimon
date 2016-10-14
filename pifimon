@@ -86,7 +86,7 @@ my $keyhintfmt = color 'underline';
 ###############################
 
 
-my $VERSION = '0.4rc2';
+my $VERSION = '0.4rc3';
 
 # get the path to the script ready for use lib
 my $path;
@@ -261,7 +261,7 @@ sub monitor {
   while (1) {
     my $c;
     $c = ReadKey(-1);
-    if (lc($c) eq 'q' ) {    # exit if we get a Q
+    if ($c && lc($c) eq 'q' ) {    # exit if we get a Q
       last;
     }
     unless ($scanner->scan($essid)) {
@@ -480,13 +480,13 @@ sub scan {
     my $cmd = 'iwlist ' . $self->{'if'} . ' scan ';
     # not all drivers support restricting the scan to a given essid
     # but if it does it'll save a bit of processing
-    $cmd .= $in_essid?"essid $in_essid ":'';
+    $cmd .= $in_essid?"essid '$in_essid'":'';
     #$cmd .= '2> /dev/null';
 
     eval {
       local $SIG{__DIE__} = 'DEFAULT';
       @myLines = `$cmd`;
-    } or die "Execution of iwlist failed (command '$cmd'): $@";
+    } or warn "Execution of iwlist failed (command '$cmd'): $@";
 
   }
   return 0 unless (@myLines);
@@ -501,6 +501,9 @@ sub scan {
     if ($_ =~ $self->{'re'}->{'cell'}) {
       if (!$start) {
         # add the last cell processed to the cell index
+        if($self->{'data'}->{$self->{'idx'}}->{'encType2'}) {
+          $self->{'data'}->{$self->{'idx'}}->{'encType'} = $self->{'data'}->{$self->{'idx'}}->{'encType2'};
+        }
         my $thisidx = $self->{'data'}->{$self->{'idx'}}->{'macid'};
         $self->{'cellidx'}->{$thisidx} = $self->{'idx'};
       }
@@ -521,6 +524,7 @@ sub scan {
       $cell->{'sigLvl'} = "";
       $cell->{'enc'} = "";
       $cell->{'encType'} = "WEP";
+      $cell->{'encType2'} = "";
       $cell->{'authType'} = "N/A";
       $cell->{'channel'} = "";
       $self->{'data'}->{$self->{'idx'}} = $cell;
@@ -539,6 +543,9 @@ sub scan {
     }
     elsif($_ =~ $self->{'re'}->{'enctype'}) {
       $self->{'data'}->{$self->{'idx'}}->{'encType'} = $self->handleEncType($_);
+    }
+    elsif($_ =~ $self->{'re'}->{'enctype2'}) {
+      $self->{'data'}->{$self->{'idx'}}->{'encType2'} = $self->handleEncType2($_);
     }
     elsif($_ =~ $self->{'re'}->{'authtype'}) {
       $self->{'data'}->{$self->{'idx'}}->{'authType'} = $self->handleAuthType($_);
@@ -623,6 +630,7 @@ sub init_re {
   $self->{'re'}->{'key'} = qr/^\s*Encryption key/;
   $self->{'re'}->{'quality'} = qr/^\s*Quality/;
   $self->{'re'}->{'enctype'} = qr/^\s*IE: WPA .+ [0-9]/;
+  $self->{'re'}->{'enctype2'} = qr/^\s*IE: IEEE 802.11i\/WPA2/;
   $self->{'re'}->{'authtype'} = qr/^\s*Authentication Suites/;
   $self->{'re'}->{'frequency'} = qr/^\s*Frequency/;
 
@@ -679,6 +687,14 @@ sub handleEncType {
   my $self = shift;
   my $line = shift;
   my $encType = "WPA v".($line =~ ".*[0-9]");
+  return $encType;
+}
+
+# extact info on version of WPA in use by cell
+sub handleEncType2 {
+  my $self = shift;
+  my $line = shift;
+  my $encType = "WPA2 v".($line =~ ".*[0-9]");
   return $encType;
 }
 
