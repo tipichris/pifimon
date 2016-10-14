@@ -555,6 +555,9 @@ sub scan {
     }
   }
   # add the final index
+  if($self->{'data'}->{$self->{'idx'}}->{'encType2'}) {
+    $self->{'data'}->{$self->{'idx'}}->{'encType'} = $self->{'data'}->{$self->{'idx'}}->{'encType2'};
+  }
   my $thisidx = $self->{'data'}->{$self->{'idx'}}->{'macid'};
   $self->{'cellidx'}->{$thisidx} = $self->{'idx'};
 
